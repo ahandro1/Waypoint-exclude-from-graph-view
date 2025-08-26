@@ -441,6 +441,7 @@ export default class Waypoint extends Plugin {
 				text = prefix + text;
 			}
 		}
+			return text;
 
 	}
 
@@ -786,5 +787,6 @@ class WaypointSettingsTab extends PluginSettingTab {
 		return path.length == 0 ? path : normalizePath(path);
 	}
 }
+
 
 
