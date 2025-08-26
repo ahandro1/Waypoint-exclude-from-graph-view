@@ -707,27 +707,29 @@ class WaypointSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+
 		new Setting(containerEl)
-			  .setName('Use graph-silent URI links')
-			  .setDesc('Generate obsidian:// links instead of internal links to avoid graph edges in Graph View.')
-			  .addToggle(t =>
-			    t.setValue(this.plugin.settings.useUriLinks)
-			     .onChange(async (v) => {
-			        this.plugin.settings.useUriLinks = v;
-			        await this.plugin.saveSettings();
-			     
-new Setting(containerEl)
-  .setName(\'When URI mode is on, add hub edges to immediate children\')
-  .setDesc(\'Adds a collapsed callout with internal links so the Waypoint/Landmark note connects to each child in Graph View.\')
-  .addToggle(t =>
-    t.setValue(this.plugin.settings.addHubEdgesToChildren)
-     .onChange(async (v) => {
-       this.plugin.settings.addHubEdgesToChildren = v;
-       await this.plugin.saveSettings();
-     })
-  );
-})
-			  );
+			.setName('Use graph-silent URI links')
+			.setDesc('Generate obsidian:// links instead of internal links to avoid graph edges in Graph View.')
+			.addToggle(t =>
+				t.setValue(this.plugin.settings.useUriLinks)
+				 .onChange(async (v) => {
+					this.plugin.settings.useUriLinks = v;
+					await this.plugin.saveSettings();
+				 })
+			);
+
+		new Setting(containerEl)
+			.setName('When URI mode is on, add hub edges to immediate children')
+			.setDesc('Adds a collapsed callout with internal links so the Waypoint/Landmark note connects to each child in Graph View.')
+			.addToggle(t =>
+				t.setValue(this.plugin.settings.addHubEdgesToChildren)
+				 .onChange(async (v) => {
+					this.plugin.settings.addHubEdgesToChildren = v;
+					await this.plugin.saveSettings();
+				 })
+			);
+
 
 		new Setting(containerEl)
 			.setName("Ignored Files/Folders")
