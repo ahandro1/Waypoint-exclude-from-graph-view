@@ -24,6 +24,7 @@ interface WaypointSettings {
 	ignorePaths: string[];
 	useSpaces: boolean;
 	numSpaces: number;
+	useUriLinks: boolean;
 }
 
 const DEFAULT_SETTINGS: WaypointSettings = {
@@ -40,7 +41,28 @@ const DEFAULT_SETTINGS: WaypointSettings = {
 	ignorePaths: ["_attachments"],
 	useSpaces: false,
 	numSpaces: 2,
+	useUriLinks: false,
 };
+
+//begin helper snippit
+function toUriLink(app: App, file: TFile, display: string) {
+  const vault = encodeURIComponent(app.vault.getName());
+  const pathNoExt = file.path.replace(/\.md$/i, '');
+  const fileParam = encodeURIComponent(pathNoExt);
+  return `[${display}](obsidian://open?vault=${vault}&file=${fileParam})`;
+}
+
+function toWikiOrRelativeLink(file: TFile, display: string) {
+  return `[[${file.path}|${display}]]`;
+}
+
+function renderLink(app: App, settings: WaypointSettings, file: TFile, display: string) {
+  return settings.useUriLinks
+    ? toUriLink(app, file, display)
+    : toWikiOrRelativeLink(file, display);
+}
+// end helper insert
+
 
 export default class Waypoint extends Plugin {
 	static readonly BEGIN_WAYPOINT = "%% Begin Waypoint %%";
@@ -295,26 +317,24 @@ export default class Waypoint extends Plugin {
 			} else {
 				title = null;
 			}
-			// Print the file name
+			// Print the file name (Markdown notes)
 			if (node.extension == "md") {
-				if (this.settings.useWikiLinks) {
-					if (title) {
-						return `${bullet} [[${node.basename}|${title}]]`;
-					} else {
-					return `${bullet} [[${node.basename}]]`;
-					}
-				}
-				if (title) {
-					return `${bullet} [${title}](${this.getEncodedUri(rootNode, node)})`;
-				} else {
-					return `${bullet} [${node.basename}](${this.getEncodedUri(rootNode, node)})`;
-				}
+			  const display = title ?? node.basename;
+			  const link = renderLink(this.app, this.settings, node, display);
+			  return `${bullet} ${link}`;
 			}
+
 			if (this.settings.showNonMarkdownFiles) {
-				if (this.settings.useWikiLinks) {
-					return `${bullet} [[${node.name}]]`;
-				}
-				return `${bullet} [${node.name}](${this.getEncodedUri(rootNode, node)})`;
+			  const display = node.name;
+			  if (this.settings.useUriLinks) {
+			    // Use obsidian:// link to avoid graph edges even for non-md
+			    const link = toUriLink(this.app, node as TFile, display);
+			    return `${bullet} ${link}`;
+			  }
+			  if (this.settings.useWikiLinks) {
+			    return `${bullet} [[${node.name}]]`;
+			  }
+			  return `${bullet} [${display}](${this.getEncodedUri(rootNode, node)})`;
 			}
 			return null;
 		}
@@ -324,26 +344,26 @@ export default class Waypoint extends Plugin {
 			text = `${bullet} **${node.name}**`;
 			let folderNote;
 			if (this.settings.folderNoteType === FolderNoteType.InsideFolder) {
-				folderNote = this.app.vault.getAbstractFileByPath(node.path + "/" + node.name + ".md");
+				folderNote = this.app.vault.getAbstracByPath(node.path + "/" + node.name + ".md");
 			} else if (node.parent) {
 				folderNote = this.app.vault.getAbstractFileByPath(node.parent.path + "/" + node.name + ".md");
 			}
 			if (folderNote instanceof TFile) {
-				if (this.settings.useWikiLinks) {
-					text = `${bullet} **[[${folderNote.basename}]]**`;
-				} else {
-					text = `${bullet} **[${folderNote.basename}](${this.getEncodedUri(rootNode, folderNote)})**`;
-				}
-				if (!topLevel) {
-					if (this.settings.stopScanAtFolderNotes) {
-						return text;
-					}
-					const content = await this.app.vault.cachedRead(folderNote);
-					if (content.includes(Waypoint.BEGIN_WAYPOINT) || content.includes(this.settings.waypointFlag)) {
-						return text;
-					}
-				}
+			  const display = folderNote.basename;
+			  const link = renderLink(this.app, this.settings, folderNote, display);
+			  text = `${bullet} **${link}**`;
+			
+			  if (!topLevel) {
+			    if (this.settings.stopScanAtFolderNotes) {
+			      return text;
+			    }
+			    const content = await this.app.vault.cachedRead(folderNote);
+			    if (content.includes(Waypoint.BEGIN_WAYPOINT) || content.includes(this.settings.waypointFlag)) {
+			      return text;
+			    }
+			  }
 			}
+
 		}
 		if (!node.children || node.children.length == 0) {
 			return `${bullet} **${node.name}**`;
@@ -652,6 +672,17 @@ class WaypointSettingsTab extends PluginSettingTab {
 					})
 			);
 		new Setting(containerEl)
+			  .setName('Use graph-silent URI links')
+			  .setDesc('Generate obsidian:// links instead of internal links to avoid graph edges in Graph View.')
+			  .addToggle(t =>
+			    t.setValue(this.plugin.settings.useUriLinks)
+			     .onChange(async (v) => {
+			        this.plugin.settings.useUriLinks = v;
+			        await this.plugin.saveSettings();
+			     })
+			  );
+
+		new Setting(containerEl)
 			.setName("Ignored Files/Folders")
 			.setDesc("Regex list of files or folders to ignore while making indices. Enter only one regex per line.")
 			.addTextArea((text) =>
@@ -694,3 +725,4 @@ class WaypointSettingsTab extends PluginSettingTab {
 		return path.length == 0 ? path : normalizePath(path);
 	}
 }
+
