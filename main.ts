@@ -243,6 +243,14 @@ export default class Waypoint extends Plugin {
 		if (!fileTree) {
 			fileTree = await this.getFileTreeRepresentation(file.parent, file.parent, 0, true);
 		}
+				// Fallback: if folder resolution failed, render parent folder
+		if (!fileTree) {
+		  fileTree = await this.getFileTreeRepresentation(file.parent, file.parent, 0, true);
+		}
+		
+		// Guard: ensure fileTree is a string to avoid 'undefined' in output
+		if (!fileTree) { fileTree = ""; }
+
 		const [beginWaypoint, endWaypoint] = await this.getWaypointBounds(flagType);
 		let waypoint = `${beginWaypoint}\n${fileTree}\n\n${endWaypoint}`;
 		if (beginWaypoint === null || endWaypoint === null) {
@@ -778,4 +786,5 @@ class WaypointSettingsTab extends PluginSettingTab {
 		return path.length == 0 ? path : normalizePath(path);
 	}
 }
+
 
