@@ -418,14 +418,31 @@ export default class Waypoint extends Plugin {
 
 		if (children.length > 0) {
 			// Collect hub edges to immediate child markdown files (top level only)
-			const hubChildren: TFile[] = [];
+			// Collect hub edges to immediate markdown files and folder-notes (top level only)
+			const hubTargets: TFile[] = [];
+			if (topLevel && node instanceof TFolder) {
+			  for (const c of children) {
+			    if (this.ignorePath(c.path)) continue;
+			    if (c instanceof TFile && c.extension === "md") {
+			      hubTargets.push(c);
+			    } else if (c instanceof TFolder) {
+			      let fn = null;
+			      if (this.settings.folderNoteType === FolderNoteType.InsideFolder) {
+			        fn = this.app.vault.getAbstractFileByPath(c.path + "/" + c.name + ".md");
+			      } else if (c.parent) {
+			        fn = this.app.vault.getAbstractFileByPath(c.parent.path + "/" + c.name + ".md");
+			      }
+			      if (fn instanceof TFile && !this.ignorePath(fn.path)) {
+			        hubTargets.push(fn);
+			      }
+			    }
+			  }
+			}
+
 			const nextIndentLevel = topLevel && !this.settings.showEnclosingNote ? indentLevel : indentLevel + 1;
 
 			const parts = await Promise.all(
 				children.map(async (child) => {
-					if (topLevel && child instanceof TFile && child.extension === "md") {
-						hubChildren.push(child);
-					}
 					return await this.getFileTreeRepresentation(rootNode, child as any, nextIndentLevel);
 				})
 			);
@@ -435,10 +452,10 @@ export default class Waypoint extends Plugin {
 			text += (text === "" ? "" : "\n") + body;
 
 			// Prepend a collapsed callout of internal links to immediate children to create hub→child edges
-			if (this.settings.useUriLinks && this.settings.addHubEdgesToChildren && topLevel && hubChildren.length > 0) {
-				const hubLinks = hubChildren.map((f) => `[[${f.basename}]]`).join(" ");
-				const prefix = `> [!note]- Index edges (auto)\n` + `> ${hubLinks}\n\n`;
-				text = prefix + text;
+			if (this.settings.useUriLinks && this.settings.addHubEdgesToChildren && topLevel && hubTargets.length > 0) {
+			  const hubLinks = hubTargets.map((f) => `[[${f.basename}]]`).join(" ");
+			  const prefix = `> [!note]- Index edges (auto)\n` + `> ${hubLinks}\n\n`;
+			  text = prefix + text;
 			}
 		}
 			return text;
@@ -787,6 +804,7 @@ class WaypointSettingsTab extends PluginSettingTab {
 		return path.length == 0 ? path : normalizePath(path);
 	}
 }
+
 
 
 
