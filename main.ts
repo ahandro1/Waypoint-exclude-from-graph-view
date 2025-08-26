@@ -344,7 +344,7 @@ export default class Waypoint extends Plugin {
 			text = `${bullet} **${node.name}**`;
 			let folderNote;
 			if (this.settings.folderNoteType === FolderNoteType.InsideFolder) {
-				folderNote = this.app.vault.getAbstracByPath(node.path + "/" + node.name + ".md");
+				folderNote = this.app.vault.getAbstractFileByPath(node.path + "/" + node.name + ".md");
 			} else if (node.parent) {
 				folderNote = this.app.vault.getAbstractFileByPath(node.parent.path + "/" + node.name + ".md");
 			}
