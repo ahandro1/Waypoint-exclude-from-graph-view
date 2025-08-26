@@ -25,6 +25,7 @@ interface WaypointSettings {
 	useSpaces: boolean;
 	numSpaces: number;
 	useUriLinks: boolean;
+	addHubEdgesToChildren: boolean;
 }
 
 const DEFAULT_SETTINGS: WaypointSettings = {
@@ -42,6 +43,7 @@ const DEFAULT_SETTINGS: WaypointSettings = {
 	useSpaces: false,
 	numSpaces: 2,
 	useUriLinks: false,
+	addHubEdgesToChildren: false,
 };
 
 //begin helper snippit
@@ -393,6 +395,13 @@ export default class Waypoint extends Plugin {
 			const nextIndentLevel = topLevel && !this.settings.showEnclosingNote ? indentLevel : indentLevel + 1;
 			text += (text === "" ? "" : "\n") + (await Promise.all(children.map((child) => this.getFileTreeRepresentation(rootNode, child, nextIndentLevel)))).filter(Boolean).join("\n");
 		}
+		// Prepend hub edges callout in URI mode if enabled
+		if (this.settings.useUriLinks && this.settings.addHubEdgesToChildren && topLevel && hubChildren.length > 0) {
+			const hubLinks = hubChildren.map(f => `[[${f.basename}]]`).join(\" \");
+			const prefix = `> [!note]- Index edges (auto)\n` + `> ${hubLinks}\n\n`;
+			text = prefix + text;
+		}
+
 		return text;
 	}
 
@@ -679,7 +688,18 @@ class WaypointSettingsTab extends PluginSettingTab {
 			     .onChange(async (v) => {
 			        this.plugin.settings.useUriLinks = v;
 			        await this.plugin.saveSettings();
-			     })
+			     
+new Setting(containerEl)
+  .setName(\'When URI mode is on, add hub edges to immediate children\')
+  .setDesc(\'Adds a collapsed callout with internal links so the Waypoint/Landmark note connects to each child in Graph View.\')
+  .addToggle(t =>
+    t.setValue(this.plugin.settings.addHubEdgesToChildren)
+     .onChange(async (v) => {
+       this.plugin.settings.addHubEdgesToChildren = v;
+       await this.plugin.saveSettings();
+     })
+  );
+})
 			  );
 
 		new Setting(containerEl)
