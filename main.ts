@@ -378,31 +378,58 @@ export default class Waypoint extends Plugin {
 				sensitivity: "base",
 			});
 		});
+		// Filter out folder notes and ignored paths if configured
 		if (!this.settings.showFolderNotes) {
 			if (this.settings.folderNoteType === FolderNoteType.InsideFolder) {
-				children = children.filter((child) => (this.settings.showFolderNotes || child.name !== node.name + ".md") && !this.ignorePath(child.path));
+				children = children.filter((child) => {
+					if (this.ignorePath(child.path)) return false;
+					// Exclude folder note inside the folder
+					return !(child instanceof TFile && child.name === node.name + ".md");
+				});
 			} else {
-				const folderNames = new Set();
+				const folderNames = new Set<string>();
 				for (const element of children) {
 					if (element instanceof TFolder) {
 						folderNames.add(element.name + ".md");
 					}
 				}
-				children = children.filter((child) => (child instanceof TFolder || !folderNames.has(child.name)) && !this.ignorePath(child.path));
+				children = children.filter((child) => {
+					if (this.ignorePath(child.path)) return false;
+					// Exclude folder-note in parent folder
+					return !(child instanceof TFile && folderNames.has(child.name));
+				});
 			}
-		}
-		if (children.length > 0) {
-			const nextIndentLevel = topLevel && !this.settings.showEnclosingNote ? indentLevel : indentLevel + 1;
-			text += (text === "" ? "" : "\n") + (await Promise.all(children.map((child) => this.getFileTreeRepresentation(rootNode, child, nextIndentLevel)))).filter(Boolean).join("\n");
-		}
-		// Prepend hub edges callout in URI mode if enabled
-		if (this.settings.useUriLinks && this.settings.addHubEdgesToChildren && topLevel && hubChildren.length > 0) {
-			const hubLinks = hubChildren.map(f => `[[${f.basename}]]`).join(\" \");
-			const prefix = `> [!note]- Index edges (auto)\n` + `> ${hubLinks}\n\n`;
-			text = prefix + text;
+		} else {
+			// Even if showing folder notes, still honor ignorePaths
+			children = children.filter((child) => !this.ignorePath(child.path));
 		}
 
-		return text;
+		if (children.length > 0) {
+			// Collect hub edges to immediate child markdown files (top level only)
+			const hubChildren: TFile[] = [];
+			const nextIndentLevel = topLevel && !this.settings.showEnclosingNote ? indentLevel : indentLevel + 1;
+
+			const parts = await Promise.all(
+				children.map(async (child) => {
+					if (topLevel && child instanceof TFile && child.extension === "md") {
+						hubChildren.push(child);
+					}
+					return await this.getFileTreeRepresentation(rootNode, child as any, nextIndentLevel);
+				})
+			);
+
+			// Append rendered children
+			const body = parts.filter(Boolean).join("\n");
+			text += (text === "" ? "" : "\n") + body;
+
+			// Prepend a collapsed callout of internal links to immediate children to create hub→child edges
+			if (this.settings.useUriLinks && this.settings.addHubEdgesToChildren && topLevel && hubChildren.length > 0) {
+				const hubLinks = hubChildren.map((f) => `[[${f.basename}]]`).join(" ");
+				const prefix = `> [!note]- Index edges (auto)\n` + `> ${hubLinks}\n\n`;
+				text = prefix + text;
+			}
+		}
+
 	}
 
 	/**
