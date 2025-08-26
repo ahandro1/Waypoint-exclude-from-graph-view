@@ -239,6 +239,10 @@ export default class Waypoint extends Plugin {
 				fileTree = await this.getFileTreeRepresentation(file.parent, folder, 0, true);
 			}
 		}
+		// Fallback: if folder resolution failed, render parent folder
+		if (!fileTree) {
+			fileTree = await this.getFileTreeRepresentation(file.parent, file.parent, 0, true);
+		}
 		const [beginWaypoint, endWaypoint] = await this.getWaypointBounds(flagType);
 		let waypoint = `${beginWaypoint}\n${fileTree}\n\n${endWaypoint}`;
 		if (beginWaypoint === null || endWaypoint === null) {
